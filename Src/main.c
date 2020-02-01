@@ -66,7 +66,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  set = atoi(set_str);
 
  HAL_UART_Transmit_IT(&huart3, message, message_size);
- HAL_UART_Receive_IT(&huart3, Received, 10);
+ HAL_UART_Receive_IT(&huart3, Received, 3);
 }
 /* USER CODE END PFP */
 
