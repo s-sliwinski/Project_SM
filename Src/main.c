@@ -48,13 +48,26 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint8_t Received[3];
+int set = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
+ uint8_t message[40];
+ uint16_t message_size = 0;
+ uint8_t set_str [3];
+
+ sprintf(set_str, "%c%c%c", Received[0], Received[1], Received[2]);//parsowanie wejścia USART
+ message_size = sprintf(message, "Zadana wartosc: %s\n\r",set_str);
+ set = atoi(set_str);
+
+ HAL_UART_Transmit_IT(&huart3, message, message_size);
+ HAL_UART_Receive_IT(&huart3, Received, 10);
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -74,6 +87,7 @@ int main(void)
 	float lx = 0.0;
 	uint8_t message[40];
 	uint8_t size = 0;
+	float diff = 0.0;
   /* USER CODE END 1 */
   
 
@@ -101,20 +115,24 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_UART_Receive_IT(&huart3, Received, 3);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 	  if(pwm_duty<=100){
 			 TIM_CHANNEL_1_SET_COMPARE = (pwm_duty * __HAL_TIM_GET_AUTORELOAD(&htim3))/100;
 			 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, TIM_CHANNEL_1_SET_COMPARE);
 			  lx = BH_1750_Read();
-			 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f\n\r",lx,pwm_duty);
+			  diff = lx - set;
+			 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f ; DIFF: %.2f\n\r",lx,pwm_duty,diff);
 			 HAL_UART_Transmit_IT(&huart3, message, size);
 			 pwm_duty+=5.0;
-			 HAL_Delay(500);
+			 HAL_Delay(1000);
 	  }
 	  else{pwm_duty = 0;}
     /* USER CODE END WHILE */
