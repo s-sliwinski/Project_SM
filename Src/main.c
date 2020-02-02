@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "BH_1750.h"
+#include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,6 +39,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define PID_PARAM_KP        1            /* Proportional */
+#define PID_PARAM_KI        0.25        /* Integral */
+#define PID_PARAM_KD        0            /* Derivative */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,7 +53,7 @@
 
 /* USER CODE BEGIN PV */
 uint8_t Received[3];
-int set = 0;
+int set = 50;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,12 +86,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int TIM_CHANNEL_1_SET_COMPARE = 0;
+
 	float pwm_duty = 0.0;
 	float lx = 0.0;
 	uint8_t message[40];
 	uint8_t size = 0;
-	float diff = 0.0;
+	float error = 0.0;
+	arm_pid_instance_f32 PID;
+	int32_t resetStateFlag = 1;
+	PID.Kp = PID_PARAM_KP;
+	PID.Ki = PID_PARAM_KI;
+	PID.Kd = PID_PARAM_KD;
   /* USER CODE END 1 */
   
 
@@ -114,8 +123,10 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
+  BH_1750_Init();
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart3, Received, 3);
+  arm_pid_init_f32(&PID, resetStateFlag);
 
   /* USER CODE END 2 */
 
@@ -124,17 +135,22 @@ int main(void)
   while (1)
   {
 
-	  if(pwm_duty<=100){
-			 TIM_CHANNEL_1_SET_COMPARE = (pwm_duty * __HAL_TIM_GET_AUTORELOAD(&htim3))/100;
-			 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, TIM_CHANNEL_1_SET_COMPARE);
+
+
 			  lx = BH_1750_Read();
-			  diff = lx - set;
-			 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f ; DIFF: %.2f\n\r",lx,pwm_duty,diff);
+			  error = lx - set;
+			  pwm_duty = arm_pid_f32(&PID, error);
+			  if (pwm_duty > 100) {
+			   pwm_duty = 100;
+			 } else if (pwm_duty < 0) {
+			   pwm_duty = 0;
+			 }
+			 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm_duty);
+			 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f ; ERROR: %.2f\n\r",lx,pwm_duty,error);
 			 HAL_UART_Transmit_IT(&huart3, message, size);
-			 pwm_duty+=5.0;
 			 HAL_Delay(1000);
-	  }
-	  else{pwm_duty = 0;}
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
