@@ -40,7 +40,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define PID_PARAM_KP        -0.5            /* Proportional */
-#define PID_PARAM_KI        -0.5        /* Integral */
+#define PID_PARAM_KI        -0.25        /* Integral */
 #define PID_PARAM_KD        0            /* Derivative */
 /* USER CODE END PD */
 
@@ -71,6 +71,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
  HAL_UART_Transmit_IT(&huart3, message, message_size);
  HAL_UART_Receive_IT(&huart3, Received, 3);
+ HAL_Delay(100); //usunąć jeśli nie działa
 }
 /* USER CODE END PFP */
 
@@ -148,17 +149,22 @@ int main(void)
 				 }
 				  TIM_CHANNEL_1_SET_COMPARE = (pwm_duty * __HAL_TIM_GET_AUTORELOAD(&htim3))/100;
 				 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, TIM_CHANNEL_1_SET_COMPARE);
-				 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f ; ERROR: %.2f\n\r",lx,pwm_duty,error);
-				 HAL_UART_Transmit_IT(&huart3, message, size);
 
-				 	 	 	 //if (error > 1.0 && pwm_duty <= 0){
-				 			//	  size = sprintf(message, "END OF ADJUSTMENT RANGE: ROOM  %.3f [lx] TOO BRIGHT\n\r",error);
-				 			//	  HAL_UART_Transmit_IT(&huart3, message, size);
-				 			//  }
-				 			//  else if(error < -1.0 && pwm_duty >= 100){
-				 			//	  size = sprintf(message, "END OF ADJUSTMENT RANGE: ROOM  %.3f [lx] TOO DARK\n\r",error);
-				 			//	  HAL_UART_Transmit_IT(&huart3, message, size);
-				 			//  }
+				 	 	 	 if (error < 1.0 && error > -1.0){
+				 	 		 	 size = sprintf(message, "intensity: %.3f[lx] ; PWM: %.1f ; ERROR: %.2f\n\r",lx,pwm_duty,error);
+				 	 		 	 HAL_UART_Transmit_IT(&huart3, message, size);
+				 	 	 	 }
+
+				 	 	 	if (error > 1.0 && pwm_duty <= 0){
+				 				  size = sprintf(message, "ROOM  %.3f [lx] TOO BRIGHT\n\r",error);
+				 				  HAL_UART_Transmit_IT(&huart3, message, size);
+				 				 HAL_Delay(3000);
+				 			  }
+				 			  else if(error < -1.0 && pwm_duty >= 100){
+				 				  size = sprintf(message, "ROOM  %.3f [lx] TOO DARK\n\r",error);
+				 				  HAL_UART_Transmit_IT(&huart3, message, size);
+				 				 HAL_Delay(3000);
+				 			  }
 			 HAL_Delay(100);
 
 
